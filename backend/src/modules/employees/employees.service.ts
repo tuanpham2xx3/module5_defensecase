@@ -1,13 +1,11 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { EmployeeStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 import { Role } from '../../common/constants/role.enum';
 import { toPublicEmployee } from '../../common/utils/employee-presenter';
-import { Department } from '../../database/entities/department.entity';
-import { Employee, EmployeeStatus } from '../../database/entities/employee.entity';
-import { JobTitle } from '../../database/entities/job-title.entity';
+import { PrismaService } from '../../database/prisma.service';
+import { employeeInclude } from '../../database/types';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { EmployeeQueryDto } from './dto/employee-query.dto';
@@ -15,11 +13,7 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 
 @Injectable()
 export class EmployeesService {
-  constructor(
-    @InjectRepository(Employee) private readonly employeeRepository: Repository<Employee>,
-    @InjectRepository(Department) private readonly departmentRepository: Repository<Department>,
-    @InjectRepository(JobTitle) private readonly jobTitleRepository: Repository<JobTitle>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getProfile(employeeId: number): Promise<Record<string, unknown>> {
     return toPublicEmployee(await this.findEntity(employeeId));
@@ -28,26 +22,33 @@ export class EmployeesService {
   async findAll(query: EmployeeQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
-    const builder = this.employeeRepository.createQueryBuilder('employee')
-      .leftJoinAndSelect('employee.department', 'department')
-      .leftJoinAndSelect('employee.jobTitle', 'jobTitle')
-      .leftJoinAndSelect('employee.manager', 'manager')
-      .where('employee.status = :status', { status: query.status ?? EmployeeStatus.ACTIVE });
+    const search = query.search?.trim();
+    const where = {
+      status: query.status ?? EmployeeStatus.ACTIVE,
+      ...(query.departmentId !== undefined ? { departmentId: query.departmentId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' as const } },
+              { lastName: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+              { department: { name: { contains: search, mode: 'insensitive' as const } } },
+            ],
+          }
+        : {}),
+    };
 
-    if (query.search?.trim()) {
-      builder.andWhere(
-        '(employee.first_name ILIKE :search OR employee.last_name ILIKE :search OR employee.email ILIKE :search OR department.name ILIKE :search)',
-        { search: `%${query.search.trim()}%` },
-      );
-    }
-    if (query.departmentId !== undefined) {
-      builder.andWhere('employee.department_id = :departmentId', { departmentId: query.departmentId });
-    }
+    const [employees, total] = await Promise.all([
+      this.prisma.employee.findMany({
+        where,
+        include: employeeInclude,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.employee.count({ where }),
+    ]);
 
-    const [employees, total] = await builder
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
     return {
       items: employees.map(toPublicEmployee),
       meta: { page, limit, total, totalPages: total === 0 ? 0 : Math.ceil(total / limit) },
@@ -62,22 +63,24 @@ export class EmployeesService {
     this.assertCanManage(actor);
     this.assertRoleAssignment(actor, dto.role);
     const email = dto.email.trim().toLowerCase();
-    const existing = await this.employeeRepository.findOne({ where: { email } });
+    const existing = await this.prisma.employee.findUnique({ where: { email } });
     if (existing) throw new ConflictException('Email đã được sử dụng');
     await this.validateReferences(dto);
 
-    const employee = this.employeeRepository.create({
-      firstName: dto.firstName.trim(),
-      lastName: dto.lastName.trim(),
-      email,
-      password: await bcrypt.hash(dto.password, 10),
-      role: dto.role ?? Role.USER,
-      status: EmployeeStatus.ACTIVE,
-      departmentId: dto.departmentId ?? null,
-      jobTitleId: dto.jobTitleId ?? null,
-      managerId: dto.managerId ?? null,
-    });
-    return toPublicEmployee(await this.employeeRepository.save(employee));
+    return toPublicEmployee(await this.prisma.employee.create({
+      data: {
+        firstName: dto.firstName.trim(),
+        lastName: dto.lastName.trim(),
+        email,
+        password: await bcrypt.hash(dto.password, 10),
+        role: dto.role ?? Role.USER,
+        status: EmployeeStatus.ACTIVE,
+        departmentId: dto.departmentId ?? null,
+        jobTitleId: dto.jobTitleId ?? null,
+        managerId: dto.managerId ?? null,
+      },
+      include: employeeInclude,
+    }));
   }
 
   async update(id: number, dto: UpdateEmployeeDto, actor: JwtPayload): Promise<Record<string, unknown>> {
@@ -85,34 +88,39 @@ export class EmployeesService {
     this.assertRoleAssignment(actor, dto.role);
     const employee = await this.findEntity(id);
     if (dto.email && dto.email.trim().toLowerCase() !== employee.email) {
-      const duplicate = await this.employeeRepository.findOne({ where: { email: dto.email.trim().toLowerCase() } });
+      const duplicate = await this.prisma.employee.findUnique({ where: { email: dto.email.trim().toLowerCase() } });
       if (duplicate && duplicate.id !== id) throw new ConflictException('Email đã được sử dụng');
     }
     await this.validateReferences(dto);
 
-    if (dto.firstName !== undefined) employee.firstName = dto.firstName.trim();
-    if (dto.lastName !== undefined) employee.lastName = dto.lastName.trim();
-    if (dto.email !== undefined) employee.email = dto.email.trim().toLowerCase();
-    if (dto.password !== undefined) employee.password = await bcrypt.hash(dto.password, 10);
-    if (dto.role !== undefined) employee.role = dto.role;
-    if (dto.departmentId !== undefined) employee.departmentId = dto.departmentId;
-    if (dto.jobTitleId !== undefined) employee.jobTitleId = dto.jobTitleId;
-    if (dto.managerId !== undefined) employee.managerId = dto.managerId;
-    return toPublicEmployee(await this.employeeRepository.save(employee));
+    return toPublicEmployee(await this.prisma.employee.update({
+      where: { id },
+      data: {
+        ...(dto.firstName !== undefined ? { firstName: dto.firstName.trim() } : {}),
+        ...(dto.lastName !== undefined ? { lastName: dto.lastName.trim() } : {}),
+        ...(dto.email !== undefined ? { email: dto.email.trim().toLowerCase() } : {}),
+        ...(dto.password !== undefined ? { password: await bcrypt.hash(dto.password, 10) } : {}),
+        ...(dto.role !== undefined ? { role: dto.role } : {}),
+        ...(dto.departmentId !== undefined ? { departmentId: dto.departmentId } : {}),
+        ...(dto.jobTitleId !== undefined ? { jobTitleId: dto.jobTitleId } : {}),
+        ...(dto.managerId !== undefined ? { managerId: dto.managerId } : {}),
+      },
+      include: employeeInclude,
+    }));
   }
 
   async remove(id: number, actor: JwtPayload): Promise<Record<string, unknown>> {
     this.assertCanManage(actor);
-    const employee = await this.findEntity(id);
-    employee.status = EmployeeStatus.TERMINATED;
-    return toPublicEmployee(await this.employeeRepository.save(employee));
+    await this.findEntity(id);
+    return toPublicEmployee(await this.prisma.employee.update({
+      where: { id },
+      data: { status: EmployeeStatus.TERMINATED },
+      include: employeeInclude,
+    }));
   }
 
-  private async findEntity(id: number): Promise<Employee> {
-    const employee = await this.employeeRepository.findOne({
-      where: { id },
-      relations: { department: true, jobTitle: true, manager: true },
-    });
+  private async findEntity(id: number) {
+    const employee = await this.prisma.employee.findUnique({ where: { id }, include: employeeInclude });
     if (!employee) throw new NotFoundException('Không tìm thấy nhân viên');
     return employee;
   }
@@ -130,14 +138,14 @@ export class EmployeesService {
   }
 
   private async validateReferences(dto: Pick<CreateEmployeeDto, 'departmentId' | 'jobTitleId' | 'managerId'>): Promise<void> {
-    if (dto.departmentId !== undefined && !(await this.departmentRepository.findOneBy({ id: dto.departmentId }))) {
+    if (dto.departmentId !== undefined && !(await this.prisma.department.findUnique({ where: { id: dto.departmentId } }))) {
       throw new NotFoundException('Không tìm thấy phòng ban');
     }
-    if (dto.jobTitleId !== undefined && !(await this.jobTitleRepository.findOneBy({ id: dto.jobTitleId }))) {
+    if (dto.jobTitleId !== undefined && !(await this.prisma.jobTitle.findUnique({ where: { id: dto.jobTitleId } }))) {
       throw new NotFoundException('Không tìm thấy chức danh');
     }
     if (dto.managerId !== undefined) {
-      const manager = await this.employeeRepository.findOne({ where: { id: dto.managerId } });
+      const manager = await this.prisma.employee.findUnique({ where: { id: dto.managerId } });
       if (!manager || manager.status !== EmployeeStatus.ACTIVE || manager.role !== Role.MANAGER) {
         throw new NotFoundException('Không tìm thấy quản lý đang hoạt động');
       }

@@ -4,7 +4,7 @@ import { AuthGuard } from '@nestjs/passport';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { Employee } from '../../database/entities/employee.entity';
+import { EmployeeForAuth } from '../../database/types';
 import { AuthService } from './auth.service';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -26,7 +26,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  login(@CurrentUser() employee: Employee) {
+  login(@CurrentUser() employee: EmployeeForAuth) {
     return this.authService.login(employee);
   }
 

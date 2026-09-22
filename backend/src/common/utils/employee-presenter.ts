@@ -1,6 +1,6 @@
-import { Employee } from '../../database/entities/employee.entity';
+import { EmployeeRecord } from '../../database/types';
 
-export function toPublicEmployee(employee: Employee): Record<string, unknown> {
+export function toPublicEmployee(employee: EmployeeRecord): Record<string, unknown> {
   return {
     id: employee.id,
     firstName: employee.firstName,

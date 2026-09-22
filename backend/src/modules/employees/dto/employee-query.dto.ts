@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-
-import { EmployeeStatus } from '../../../database/entities/employee.entity';
+import { EmployeeStatus } from '@prisma/client';
 
 export class EmployeeQueryDto {
   @Type(() => Number)
