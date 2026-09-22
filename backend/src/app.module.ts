@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from './modules/auth/auth.module';
+import { EmployeesModule } from './modules/employees/employees.module';
 import { Department } from './database/entities/department.entity';
 import { Employee } from './database/entities/employee.entity';
 import { JobTitle } from './database/entities/job-title.entity';
@@ -12,6 +13,7 @@ import { RefreshToken } from './database/entities/refresh-token.entity';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     AuthModule,
+    EmployeesModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
