@@ -69,6 +69,23 @@ describe('EmployeesService', () => {
     expect(result.items[0]).not.toHaveProperty('password');
   });
 
+  it('filters list results by department and status', async () => {
+    const queryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+    };
+    employeeRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await service.findAll({ page: 1, limit: 10, departmentId: 3, status: EmployeeStatus.TERMINATED });
+
+    expect(queryBuilder.where).toHaveBeenCalledWith('employee.status = :status', { status: EmployeeStatus.TERMINATED });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('employee.department_id = :departmentId', { departmentId: 3 });
+  });
+
   it('blocks HR_MANAGER from assigning ADMIN', async () => {
     employeeRepository.findOne.mockResolvedValue(employee);
 
@@ -78,6 +95,31 @@ describe('EmployeesService', () => {
       role: Role.HR_MANAGER,
     })).rejects.toMatchObject({ status: 403 });
     expect(employeeRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('creates an employee with a hashed password', async () => {
+    employeeRepository.findOne.mockResolvedValue(null);
+
+    const result = await service.create({
+      firstName: 'New',
+      lastName: 'Employee',
+      email: 'new@example.com',
+      password: 'Password@123',
+    }, {
+      sub: 1,
+      email: 'admin@example.com',
+      role: Role.ADMIN,
+    });
+
+    const saved = employeeRepository.save.mock.calls[0][0];
+    expect(saved.password).not.toBe('Password@123');
+    expect(result).not.toHaveProperty('password');
+  });
+
+  it('returns not found for an unknown employee detail', async () => {
+    employeeRepository.findOne.mockResolvedValue(null);
+
+    await expect(service.findOne(999)).rejects.toMatchObject({ status: 404 });
   });
 
   it('returns conflict for a duplicate employee email', async () => {

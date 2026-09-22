@@ -10,6 +10,7 @@ describe('AuthService', () => {
     save: jest.fn(async (value) => ({ ...value, id: value.id ?? 7 })),
   };
   const refreshTokenRepository = {
+    findOne: jest.fn(),
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
   };
@@ -100,5 +101,51 @@ describe('AuthService', () => {
       employeeId: 7,
       tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
     }));
+  });
+
+  it('validates only active users with the correct password', async () => {
+    const passwordHash = await bcrypt.hash('Password@123', 10);
+    employeeRepository.findOne.mockResolvedValue({
+      id: 7,
+      email: 'an@example.com',
+      password: passwordHash,
+      role: Role.USER,
+      status: 'ACTIVE',
+    });
+
+    await expect(service.validateUser(' AN@EXAMPLE.COM ', 'Password@123')).resolves.toMatchObject({ id: 7 });
+    await expect(service.validateUser('an@example.com', 'wrong-password')).resolves.toBeNull();
+    employeeRepository.findOne.mockResolvedValue({ status: 'INACTIVE', password: passwordHash });
+    await expect(service.validateUser('an@example.com', 'Password@123')).resolves.toBeNull();
+  });
+
+  it('rejects invalid refresh tokens and revokes valid logout tokens', async () => {
+    refreshTokenRepository.findOne.mockResolvedValueOnce(null);
+    await expect(service.refresh({ refreshToken: 'invalid-refresh-token' })).rejects.toMatchObject({ status: 401 });
+
+    const token = { revokedAt: null };
+    refreshTokenRepository.findOne.mockResolvedValueOnce(token);
+    await expect(service.logout({ refreshToken: 'valid-refresh-token' })).resolves.toEqual({ message: 'Đăng xuất thành công' });
+    expect(token.revokedAt).toEqual(expect.any(Date));
+  });
+
+  it('rotates a valid refresh token', async () => {
+    const token = {
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      employee: {
+        id: 7,
+        email: 'an@example.com',
+        role: Role.USER,
+        status: 'ACTIVE',
+      },
+    };
+    refreshTokenRepository.findOne.mockResolvedValue(token);
+
+    const result = await service.refresh({ refreshToken: 'valid-refresh-token' });
+
+    expect(token.revokedAt).toEqual(expect.any(Date));
+    expect(result.access_token).toBe('jwt-access-token');
+    expect(refreshTokenRepository.save).toHaveBeenCalled();
   });
 });

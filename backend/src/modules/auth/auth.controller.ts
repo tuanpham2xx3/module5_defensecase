@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -24,6 +24,7 @@ export class AuthController {
 
   @Public()
   @UseGuards(LocalAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@CurrentUser() employee: Employee) {
     return this.authService.login(employee);

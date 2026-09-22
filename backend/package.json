@@ -64,6 +64,13 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "testEnvironment": "node",
-    "collectCoverageFrom": ["**/*.(t|j)s"]
+    "collectCoverageFrom": [
+      "**/*.ts",
+      "!**/*.spec.ts",
+      "!database/migrations/**",
+      "!database/seeds/**",
+      "!coverage/**"
+    ],
+    "coveragePathIgnorePatterns": ["/node_modules/", "/coverage/"]
   }
 }
