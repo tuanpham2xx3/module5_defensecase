@@ -1,21 +1,40 @@
 # HRM Backend — SRS 4.1 và 4.2
 
 Backend NestJS cho Authentication/API Security và Employee/Profile Management.
+Persistence dùng Prisma với PostgreSQL cài trực tiếp trên máy local; không dùng Docker.
 
 ## Chạy local
+
+Yêu cầu: Node.js 20+, npm và PostgreSQL đang chạy trên `localhost:5432`.
+
+Tạo user/database bằng `psql` hoặc pgAdmin (chạy một lần):
+
+```sql
+CREATE USER hrm_user WITH PASSWORD 'hrm_password';
+CREATE DATABASE hrm_db OWNER hrm_user;
+```
+
+Sau đó chạy backend:
 
 ```powershell
 Copy-Item .env.example .env
 npm install
-docker compose up -d
-npm run migration:run
+npm run db:generate
+npm run db:deploy
 npm run seed
 npm run start:dev
 ```
 
-Swagger: `http://localhost:3000/api/docs`
+`DATABASE_URL` mặc định trong `.env.example` là:
 
-Nếu Docker Desktop chưa chạy, hãy mở Docker Desktop trước `docker compose up -d`. Backend không dùng `synchronize`; schema được tạo bằng migration.
+```text
+postgresql://hrm_user:hrm_password@localhost:5432/hrm_db?schema=public
+```
+
+Khi phát triển schema, dùng `npm run db:migrate -- --name <ten-migration>`.
+Có thể mở Prisma Studio bằng `npm run db:studio`.
+
+Swagger: `http://localhost:3000/api/docs`
 
 ## Tài khoản demo
 
@@ -39,7 +58,8 @@ Mật khẩu của các tài khoản seed: `Password@123`.
 - `GET /employees?page=1&limit=10&search=an&departmentId=1&status=ACTIVE` — `HR_MANAGER`, `ADMIN`.
 - `GET /employees/:id`, `PATCH /employees/:id`, `DELETE /employees/:id` — `HR_MANAGER`, `ADMIN`.
 
-`DELETE /employees/:id` chỉ chuyển `status` thành `TERMINATED`, không xóa vật lý. `UpdateEmployeeDto` dùng `PartialType(CreateEmployeeDto)`. Global `ValidationPipe` bật `whitelist`, `forbidNonWhitelisted`, `transform`.
+`DELETE /employees/:id` chỉ chuyển `status` thành `TERMINATED`, không xóa vật lý.
+Global `ValidationPipe` bật `whitelist`, `forbidNonWhitelisted`, `transform`.
 
 ## Kiểm tra
 
@@ -49,4 +69,4 @@ npm run test:e2e
 npm run build
 ```
 
-Unit test không cần database. E2E hiện kiểm tra controller, validation, JWT và RBAC bằng module in-memory; migration và seed dùng PostgreSQL thật khi chạy local.
+Unit test không cần database. E2E hiện kiểm tra controller, validation, JWT và RBAC bằng module in-memory; migration và seed dùng PostgreSQL local thật.

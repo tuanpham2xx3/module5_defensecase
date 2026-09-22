@@ -4,9 +4,9 @@
 
 **Goal:** Build the NestJS backend needed to satisfy SRS 4.1 Authentication & API Security and 4.2 Employee & Profile Management.
 
-**Architecture:** A modular NestJS monolith with global JWT/RBAC guards, TypeORM repositories, migration-managed PostgreSQL tables, strict DTO validation, and focused auth/employee services. The `/profile` route uses the JWT subject; employee deletion is a transactional status update.
+**Architecture:** A modular NestJS monolith with global JWT/RBAC guards, Prisma Client, migration-managed PostgreSQL tables, strict DTO validation, and focused auth/employee services. PostgreSQL runs locally without Docker. The `/profile` route uses the JWT subject; employee deletion is a status update.
 
-**Tech Stack:** Node.js 22+, TypeScript, NestJS, PostgreSQL, TypeORM, Passport Local/JWT, bcrypt, class-validator, Helmet, Swagger, Jest, Supertest.
+**Tech Stack:** Node.js 22+, TypeScript, NestJS, PostgreSQL, Prisma, Passport Local/JWT, bcrypt, class-validator, Helmet, Swagger, Jest, Supertest.
 
 **Spec:** `docs/superpowers/specs/2026-09-23-hrm-auth-employee-design.md`
 
@@ -21,7 +21,7 @@
 - `ValidationPipe` uses `whitelist: true`, `forbidNonWhitelisted: true`, and `transform: true`.
 - `DELETE /employees/:id` changes status to `TERMINATED` and never physically deletes a row.
 - Password, refresh token, and password hash are excluded from API responses.
-- TypeORM runs with `synchronize: false`; schema is created by migrations.
+- Prisma schema is managed by migrations; the application never uses automatic schema synchronization.
 
 ## Review Focus
 

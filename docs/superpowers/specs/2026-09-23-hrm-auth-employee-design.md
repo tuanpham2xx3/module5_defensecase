@@ -18,7 +18,7 @@ Implement SRS sections 4.1 and 4.2 in a new NestJS backend, with the plan docume
 
 The backend is a modular monolith. `AuthModule` owns registration, LocalStrategy, JWT strategy, refresh-token persistence, and auth controllers. `EmployeesModule` owns the profile route, employee CRUD, DTOs, and entity-to-response mapping. Common decorators, guards, filters, and interceptors are shared through `src/common`.
 
-TypeORM maps `employees`, `departments`, `job_titles`, and `refresh_tokens`. Schema changes are migration-managed (`synchronize: false`). Employee deletion is an update of `status`, preserving relations. Business authorization remains in services in addition to controller role metadata: an HR manager cannot grant `ADMIN`, and a profile always uses the JWT subject rather than a client-supplied employee id.
+Prisma maps `employees`, `departments`, `job_titles`, and `refresh_tokens`. Schema changes are migration-managed and PostgreSQL runs locally without Docker. Employee deletion is an update of `status`, preserving relations. Business authorization remains in services in addition to controller role metadata: an HR manager cannot grant `ADMIN`, and a profile always uses the JWT subject rather than a client-supplied employee id.
 
 ## Request flow
 
@@ -26,7 +26,7 @@ TypeORM maps `employees`, `departments`, `job_titles`, and `refresh_tokens`. Sch
 2. The global JWT guard permits only routes marked `@Public()` without a bearer token.
 3. The global RolesGuard checks route metadata after authentication.
 4. Controllers pass validated DTOs and the authenticated subject to services.
-5. Services query TypeORM repositories and return sanitized employee objects.
+5. Services query Prisma Client and return sanitized employee objects.
 
 ## Error and security behavior
 
