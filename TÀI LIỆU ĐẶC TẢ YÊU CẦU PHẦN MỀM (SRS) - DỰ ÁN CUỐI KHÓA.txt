@@ -1,0 +1,327 @@
+﻿TÀI LIỆU ĐẶC TẢ YÊU CẦU PHẦN MỀM (SRS) - DỰ ÁN CUỐI KHÓA
+DEFENSE CASE STUDY 5: HUMAN RESOURCE MANAGEMENT (HRM) WEB APPLICATION
+Công nghệ: NestJS · PostgreSQL · TypeORM · Docker
+ 
+1. TỔNG QUAN DỰ ÁN & MỤC TIÊU (PROJECT OVERVIEW & GOALS)
+1.1. Giới thiệu dự án
+Dự án Human Resource Management (HRM) Web Application là bài tập lớn/đồ án tốt nghiệp cuối khóa thiết kế riêng cho sinh viên sau khi hoàn thành chuỗi 7 chuyên đề chuyên sâu về Lập trình Backend Enterprise với NestJS và PostgreSQL.
+Dự án mô phỏng một hệ thống quản lý nhân sự thực tế trong doanh nghiệp, nơi dữ liệu nhân sự, tiền lương, và phê duyệt yêu cầu nghỉ phép đòi hỏi tính toàn vẹn dữ liệu cực kỳ nghiêm ngặt, bảo mật nhiều lớp và quy trình kiểm thử hoàn chỉnh trước khi triển khai.
+1.2. Mục tiêu đào tạo & Đầu ra kỹ thuật
+Sau khi hoàn thành dự án này, sinh viên phải chứng minh được các năng lực cốt lõi:
+1. Thiết kế cơ sở dữ liệu quan hệ chuyên nghiệp: Chuẩn hóa tối thiểu 3NF, thiết lập đầy đủ các ràng buộc (Constraints) ở tầng database, viết các hàm Trigger bảo mật và Audit Trail tự động bằng PostgreSQL.
+2. Xây dựng cấu trúc Backend Scalable: Áp dụng triệt để kiến trúc phân tách theo chức năng (feature-based) của NestJS, cơ chế Dependency Injection (DI) để thiết kế hệ thống lỏng lẻo (Loosely Coupled), dễ bảo trì và kiểm thử.
+3. Bảo mật hệ thống nhiều tầng (Defense-in-Depth): Thiết lập cổng bảo vệ HTTP Header (Helmet, CORS), kiểm soát dữ liệu đầu vào (DTO + ValidationPipe), xây dựng cơ chế xác thực Stateless JWT (đăng nhập/gia hạn token) và phân quyền chặt chẽ với Role-Based Access Control (RBAC).
+4. Tài liệu hóa & Kiểm thử tự động: Tự động sinh mã hợp đồng API bằng Swagger/OpenAPI. Viết các bộ kiểm thử Unit Test cô lập (Mocking dependencies) và E2E Test mô phỏng toàn bộ chu kỳ yêu cầu.
+ 
+2. KIẾN TRÚC HỆ THỐNG & CÔNG NGHỆ (ARCHITECTURE & TECH STACK)
+2.1. Tech Stack quy định
+•  Framework chính: NestJS (TypeScript, v10+)
+•  Cơ sở dữ liệu: PostgreSQL (v15+)
+•  ORM: TypeORM (hoặc Prisma)
+•  Bảo mật & Xác thực: Passport.js, JWT (@nestjs/jwt), Bcrypt, Helmet, CORS
+•  Chuẩn hóa dữ liệu: class-validator, class-transformer
+•  Tài liệu API: Swagger UI (@nestjs/swagger)
+•  Kiểm thử: Jest (Unit Test), Supertest (E2E Test)
+•  Môi trường & Triển khai: Docker, Docker Compose
+2.2. Bản đồ Request Lifecycle áp dụng
+Hệ thống bắt buộc phải cấu trúc luồng đi dữ liệu theo đúng quy chuẩn bảo mật NestJS Request Lifecycle:
+Client Request
+   └── 1. Middleware (Helmet, CORS, Logger)
+             └── 2. Guard 1: JwtAuthGuard (Xác thực Identity, giải mã JWT)
+                   └── 3. Guard 2: RolesGuard (Kiểm tra đặc quyền RBAC)
+                         └── 4. Interceptor (Tiền xử lý, Logging thời gian chạy)
+                               └── 5. Pipe (ValidationPipe: whitelist, transform DTO)
+                                     └── 6. Controller ( Thin Controller - Điều hướng)
+                                           └── 7. Service Layer (Business Logic)
+                                             └── 8. Database Layer (PostgreSQL)
+ 
+Nếu có lỗi xảy ra ở bất kỳ tầng nào, hệ thống phải tự động đẩy về Custom Exception Filter để trả về định dạng lỗi JSON thống nhất cho Client.
+3. THIẾT KẾ CƠ SỞ DỮ LIỆU CHUẨN HÓA (3NF DATABASE SCHEMA)
+Học viên bắt buộc phải cấu hình thiết kế PostgreSQL chuẩn hóa dạng 3NF (Third Normal Form) để triệt tiêu dư thừa dữ liệu và loại bỏ các dị biệt thao tác (Anomaly).
+                                ┌────────────────┐
+                                │  departments   │
+                                └───────┬────────┘
+                                        │ 1
+                                        │ N
+ ┌──────────────┐ 1             N ┌─────▼────────┐ N             1 ┌──────────────┐
+ │  job_titles  ├─────────────►  employees   ◄─────────────┤   payrolls   │
+ └──────────────┘                 └─────┬────────┘                 └──────────────┘
+                                        │ 1
+                                        │ N
+                                  ┌─────▼────────┐
+                                  │leave_requests│
+                                  └──────────────┘
+ 
+3.1. Bảng departments (Phòng ban)
+Cột
+	Kiểu dữ liệu & Ràng buộc
+	Mô tả
+	id
+	SERIAL PRIMARY KEY
+	 
+	name
+	VARCHAR(100) UNIQUE NOT NULL
+	Tên phòng ban
+	budget
+	NUMERIC(12, 2) CHECK (budget >= 0)
+	Ngân sách hoạt động
+	location
+	VARCHAR(150) NOT NULL
+	Địa điểm văn phòng
+	created_at
+	TIMESTAMP DEFAULT NOW()
+	 
+	 
+3.2. Bảng job_titles (Chức danh công việc)
+Cột
+	Kiểu dữ liệu & Ràng buộc
+	Mô tả
+	id
+	SERIAL PRIMARY KEY
+	 
+	title
+	VARCHAR(100) UNIQUE NOT NULL
+	Tên chức danh (VD: Software Engineer)
+	salary_range_min
+	NUMERIC(10, 2) CHECK (salary_range_min > 0)
+	 
+	salary_range_max
+	NUMERIC(10, 2)
+	 
+	Ràng buộc bổ sung
+	CHECK (salary_range_max >= salary_range_min)
+	 
+	 
+3.3. Bảng employees (Nhân sự)
+Cột
+	Kiểu dữ liệu & Ràng buộc
+	Mô tả
+	id
+	SERIAL PRIMARY KEY
+	 
+	first_name
+	VARCHAR(50) NOT NULL
+	 
+	last_name
+	VARCHAR(50) NOT NULL
+	 
+	email
+	VARCHAR(150) UNIQUE NOT NULL
+	Email dùng làm Username đăng nhập
+	password
+	VARCHAR(255) NOT NULL
+	Lưu mật khẩu đã được HASH qua Bcrypt/Argon2
+	role
+	VARCHAR(20) NOT NULL CHECK (role IN ('USER', 'MANAGER', 'HR_MANAGER', 'ADMIN'))
+	 
+	department_id
+	INT REFERENCES departments(id) ON DELETE RESTRICT
+	 
+	job_title_id
+	INT REFERENCES job_titles(id) ON DELETE RESTRICT
+	 
+	manager_id
+	INT REFERENCES employees(id) ON DELETE SET NULL
+	Quan hệ Self-referencing thể hiện quản lý trực tiếp
+	status
+	VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'TERMINATED'))
+	 
+	created_at
+	TIMESTAMP DEFAULT NOW()
+	 
+	 
+3.4. Bảng leave_requests (Yêu cầu nghỉ phép)
+Cột
+	Kiểu dữ liệu & Ràng buộc
+	Mô tả
+	id
+	SERIAL PRIMARY KEY
+	 
+	employee_id
+	INT REFERENCES employees(id) ON DELETE CASCADE
+	 
+	start_date
+	DATE NOT NULL
+	 
+	end_date
+	DATE NOT NULL
+	 
+	type
+	VARCHAR(20) CHECK (type IN ('SICK', 'CASUAL', 'VACATION'))
+	 
+	status
+	VARCHAR(30) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED_BY_MANAGER', 'APPROVED_BY_HR', 'REJECTED'))
+	 
+	reason
+	TEXT
+	Lý do nghỉ
+	approved_by_manager_id
+	INT REFERENCES employees(id)
+	 
+	approved_by_hr_id
+	INT REFERENCES employees(id)
+	 
+	Ràng buộc bổ sung
+	CHECK (end_date >= start_date)
+	 
+	 
+3.5. Bảng payrolls (Bảng lương)
+Cột
+	Kiểu dữ liệu & Ràng buộc
+	Mô tả
+	id
+	SERIAL PRIMARY KEY
+	 
+	employee_id
+	INT REFERENCES employees(id) ON DELETE CASCADE
+	 
+	base_salary
+	NUMERIC(10, 2) CHECK (base_salary > 0)
+	Lương cơ bản
+	bonuses
+	NUMERIC(10, 2) DEFAULT 0 CHECK (bonuses >= 0)
+	 
+	deductions
+	NUMERIC(10, 2) DEFAULT 0 CHECK (deductions >= 0)
+	 
+	total_salary
+	NUMERIC(10, 2) GENERATED ALWAYS AS (base_salary + bonuses - deductions) STORED
+	Lương thực nhận (Cột tính toán tự động ở Postgres)
+	pay_period_start
+	DATE NOT NULL
+	 
+	pay_period_end
+	DATE NOT NULL
+	 
+	status
+	VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID'))
+	 
+	created_at
+	TIMESTAMP DEFAULT NOW()
+	 
+	 
+3.6. Bảng audit_logs (Nhật ký thay đổi hệ thống)
+Cột
+	Kiểu dữ liệu & Ràng buộc
+	Mô tả
+	id
+	BIGSERIAL PRIMARY KEY
+	 
+	actor_id
+	INT
+	ID nhân viên thực hiện (Có thể NULL nếu hệ thống tự chạy)
+	action
+	VARCHAR(20) NOT NULL
+	Lệnh (INSERT, UPDATE, DELETE)
+	table_name
+	VARCHAR(50) NOT NULL
+	Bảng bị ảnh hưởng
+	record_id
+	INT NOT NULL
+	ID của bản ghi bị thay đổi
+	old_value
+	JSONB
+	Dữ liệu cũ trước khi đổi (NULL nếu là INSERT)
+	new_value
+	JSONB
+	Dữ liệu mới sau khi đổi (NULL nếu là DELETE)
+	ip_address
+	VARCHAR(45)
+	Địa chỉ IP thực hiện cuộc gọi
+	timestamp
+	TIMESTAMP DEFAULT NOW()
+	 
+	 
+4. YÊU CẦU CHỨC NĂNG CHI TIẾT (FUNCTIONAL REQUIREMENTS)
+4.1. Authentication & API Security (Hệ thống bảo mật)
+1. Đăng ký tài khoản (Register):
+–  Endpoint: POST /auth/register (Công khai).
+–  Nghiệp vụ: Tạo nhân sự mới, tự động mã hóa mật khẩu bằng Bcrypt với SaltRounds = 10.
+2. Đăng nhập hệ thống (Login):
+–  Endpoint: POST /auth/login (Công khai).
+–  Nghiệp vụ: Sử dụng LocalStrategy của Passport để kiểm tra Email & Mật khẩu. Nếu đúng, trả về access_token dạng JWT và một refresh_token ngẫu nhiên.
+3. Xác thực API bằng JwtStrategy:
+–  Tất cả các API còn lại trong hệ thống phải được bảo vệ mặc định bởi JwtAuthGuard gắn làm APP_GUARD toàn cục.
+–  Cung cấp custom decorator @Public() để bypass (mở khóa) cho các API Login/Register.
+4. Phân quyền chặt chẽ (RBAC):
+–  Sử dụng Custom Decorator @Roles('ADMIN', 'HR_MANAGER', 'MANAGER') và RolesGuard để chặn API ở cấp Controller.
+–  Nguyên tắc phân quyền:
+◦  USER: Chỉ xem profile bản thân, nộp đơn nghỉ phép cá nhân.
+◦  MANAGER: Có thêm quyền phê duyệt đơn nghỉ phép của nhân sự cấp dưới (những nhân sự có manager_id trỏ về ID của Manager này).
+◦  HR_MANAGER: Quản lý danh sách nhân sự (CRUD), điều chỉnh thông tin chức danh, cấu hình lương cơ bản.
+◦  ADMIN: Có toàn quyền hệ thống, cấu hình phòng ban, xem audit log hệ thống.
+4.2. Employee & Profile Management (Quản lý Nhân sự)
+1. Xem Profile cá nhân:
+–  Endpoint: GET /profile.
+–  Nghiệp vụ: Sử dụng custom parameter decorator @CurrentUser() để lấy an toàn thông tin user từ JWT payload, trả về thông tin chi tiết của bản thân.
+2. Quản lý danh sách nhân sự (Dành riêng cho HR_MANAGER và ADMIN):
+–  Endpoints: POST /employees (Tạo mới), GET /employees (Danh sách có phân trang page/limit và tìm kiếm theo tên/phòng ban), PATCH /employees/:id (Cập nhật), DELETE /employees/:id (Đổi status sang TERMINATED, tuyệt đối không dùng DELETE vật lý để tránh hỏng dữ liệu quan hệ).
+–  Mass Assignment Protection: Bắt buộc khai báo UpdateEmployeeDto kế thừa từ CreateEmployeeDto thông qua PartialType(). Cấu hình ValidationPipe với whitelist: true và forbidNonWhitelisted: true để từ chối ngay lập tức mọi request nhồi nhét thuộc tính ảo.
+4.3. Dual-Approval Leave Management (Quy trình Duyệt phép hai cấp)
+Quy trình nộp và duyệt phép mô phỏng quy trình thắt chặt của doanh nghiệp:
+1. Nhân viên nộp đơn phép:
+–  Endpoint: POST /leave-requests.
+–  Nghiệp vụ: Kiểm tra ngày bắt đầu/kết thúc hợp lệ. Tạo đơn phép ở trạng thái PENDING.
+2. Cấp 1 - Phê duyệt bởi Quản lý trực tiếp (Reporting Manager):
+–  Endpoint: PATCH /leave-requests/:id/approve-manager.
+–  Nghiệp vụ: Chỉ người dùng có Role MANAGER và là người quản lý trực tiếp của nhân viên đó (manager_id === req.user.id) mới được phép gọi API này. Cập nhật trạng thái đơn thành APPROVED_BY_MANAGER.
+3. Cấp 2 - Phê duyệt cuối cùng bởi HR Manager:
+–  Endpoint: PATCH /leave-requests/:id/approve-hr.
+–  Nghiệp vụ: Chỉ người dùng có Role HR_MANAGER mới được phép gọi. Chuyển trạng thái đơn thành APPROVED_BY_HR. Lúc này đơn phép mới chính thức có hiệu lực và ngày nghỉ sẽ được đồng bộ khấu trừ tự động khi tính lương.
+4.4. Automated Payroll Processing (Hệ thống tính lương)
+1. Khởi tạo bảng lương tháng (Dành riêng cho HR_MANAGER):
+–  Endpoint: POST /payrolls/process.
+–  Nghiệp vụ: Nhận vào pay_period_start và pay_period_end.
+–  Thuật toán tự động hóa:
+◦  Lấy toàn bộ nhân viên hoạt động (status = 'ACTIVE').
+◦  Tự động tính toán số ngày nghỉ phép không hợp lệ (ví dụ: nghỉ phép vượt quá số ngày được phép hoặc đơn phép không được phê duyệt cấp cuối APPROVED_BY_HR) để đưa vào cột deductions.
+◦  Cột total_salary phải được PostgreSQL tự động sinh từ công thức GENERATED ALWAYS AS (base_salary + bonuses - deductions) STORED.
+2. Xem chi tiết phiếu lương:
+–  Nhân viên bình thường chỉ xem được phiếu lương của chính mình. HR_MANAGER và ADMIN xem được của toàn bộ công ty.
+4.5. Database-level Audit Logging (Ghi nhật ký hệ thống ở tầng DB)
+Học viên bắt buộc phải viết PostgreSQL Trigger để tự động hóa việc theo dõi thay đổi dữ liệu nhạy cảm của bảng employees và payrolls.
+1. Thiết kế Trigger:
+–  Viết hàm Trigger bằng ngôn ngữ PL/pgSQL để bắt sự kiện AFTER INSERT OR UPDATE OR DELETE trên bảng employees.
+–  Hàm tự động so sánh dữ liệu mới và cũ, đổi chúng thành định dạng JSONB và ghi vào bảng audit_logs.
+2. Truyền context người dùng từ NestJS xuống PostgreSQL:
+–  Vì Trigger chạy dưới quyền của PostgreSQL, nó không tự biết tài khoản NestJS nào đang bấm nút gọi API.
+–  Yêu cầu kỹ thuật: Trước khi gọi câu lệnh cập nhật, NestJS Service phải thực hiện lệnh thiết lập session variable:
+await entityManager.query(`SET LOCAL app.current_user_id = '${userId}';`);
+ 
+Hàm trigger sẽ đọc current_setting('app.current_user_id', true) để điền chính xác trường actor_id trong bảng audit_logs.
+ 
+5. YÊU CẦU PHI CHỨC NĂNG & AN TOÀN (NON-FUNCTIONAL & SECURITY)
+5.1. Bảo mật bắt buộc (Security Hardening)
+1. Phòng thủ XSS & Clickjacking: Kích hoạt thư viện helmet() trong main.ts để ẩn các header nhạy cảm (như X-Powered-By) và thêm các policy bảo mật cho trình duyệt.
+2. Kiểm soát CORS: Cấu hình app.enableCors() chỉ cho phép các domain được định nghĩa trước trong tệp .env gọi API.
+3. Bảo mật dữ liệu mật: Tuyệt đối không lưu mật khẩu gốc (Plain text) dưới bất kỳ hình thức nào. Payload của JWT chỉ lưu trữ các thông tin định danh không nhạy cảm (id, email, role).
+5.2. Chuẩn hóa API Response & Lỗi tập trung
+1. Đồng nhất API Response: Sử dụng Interceptor để tự động đóng gói mọi dữ liệu trả về thành công dưới định dạng JSON:
+        {
+          "success": true,
+          "statusCode": 200,
+          "data": { ... },
+          "timestamp": "2026-09-03T13:41:26.000Z"
+        }
+ 
+2. Đồng nhất lỗi (Custom Exception Filter): Viết HttpExceptionFilter để bắt toàn bộ lỗi của hệ thống, chuyển đổi và trả về:
+        {
+          "success": false,
+          "statusCode": 404,
+          "message": "Không tìm thấy nhân viên có ID được yêu cầu",
+          "error": "Not Found",
+          "timestamp": "2026-09-03T13:41:26.000Z"
+        }
+6. YÊU CẦU SWAGGER & TESTING (DOCUMENTATION & TESTING)
+6.1. OpenAPI / Swagger Documentation
+•  Trang tài liệu Swagger phải được cấu hình tại endpoint /api/docs.
+•  Tất cả DTOs phải được áp dụng @ApiProperty() đi kèm mô tả (description) và ví dụ mẫu (example).
+•  Gắn @ApiBearerAuth() để tích hợp nút Authorize (ổ khóa dán JWT Token) cho toàn bộ các API được bảo vệ.
+6.2. Chiến lược kiểm thử tự động (Testing Strategy)
+Học viên bắt buộc phải viết test cho hệ thống với tỷ lệ bao phủ (Coverage) tối thiểu đạt 70%.
+1. Kiểm thử Đơn vị (Unit Test - Jest):
+–  Tập trung test business logic phức tạp của PayrollService và LeaveRequestService.
+–  Sử dụng Test.createTestingModule để dựng IoC Container ảo và áp dụng kỹ thuật Mocking để làm giả Database Repository, đảm bảo test chạy độc lập và cực nhanh.
+2. Kiểm thử Tích hợp (E2E Test - Supertest):
+–  Viết file kiểm thử luồng thực tế tại test/auth.e2e-spec.ts và test/leave.e2e-spec.ts.
+–  Bộ test E2E phải thực hiện: Gọi API Login -> Nhận Token -> Gắn Token vào header Authorization -> Gọi API duyệt phép -> Xác nhận HTTP Status trả về là 200/201.
