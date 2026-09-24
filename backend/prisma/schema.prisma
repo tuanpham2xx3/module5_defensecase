@@ -20,6 +20,24 @@ enum EmployeeStatus {
   TERMINATED
 }
 
+enum LeaveType {
+  SICK
+  CASUAL
+  VACATION
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED_BY_MANAGER
+  APPROVED_BY_HR
+  REJECTED
+}
+
+enum PayrollStatus {
+  PENDING
+  PAID
+}
+
 model Department {
   id        Int        @id @default(autoincrement())
   name      String     @unique @db.VarChar(100)
@@ -41,22 +59,26 @@ model JobTitle {
 }
 
 model Employee {
-  id            Int            @id @default(autoincrement())
-  firstName     String         @map("first_name") @db.VarChar(50)
-  lastName      String         @map("last_name") @db.VarChar(50)
-  email         String         @unique @db.VarChar(150)
-  password      String         @db.VarChar(255)
-  role          Role           @default(USER)
-  departmentId  Int?           @map("department_id")
-  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  jobTitleId    Int?           @map("job_title_id")
-  jobTitle      JobTitle?      @relation(fields: [jobTitleId], references: [id], onDelete: SetNull)
-  managerId     Int?           @map("manager_id")
-  manager       Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
-  directReports Employee[]     @relation("EmployeeManager")
-  status        EmployeeStatus @default(ACTIVE)
-  createdAt     DateTime       @default(now()) @map("created_at")
-  refreshTokens RefreshToken[]
+  id                    Int            @id @default(autoincrement())
+  firstName             String         @map("first_name") @db.VarChar(50)
+  lastName              String         @map("last_name") @db.VarChar(50)
+  email                 String         @unique @db.VarChar(150)
+  password              String         @db.VarChar(255)
+  role                  Role           @default(USER)
+  departmentId          Int?           @map("department_id")
+  department            Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  jobTitleId            Int?           @map("job_title_id")
+  jobTitle              JobTitle?      @relation(fields: [jobTitleId], references: [id], onDelete: SetNull)
+  managerId             Int?           @map("manager_id")
+  manager               Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports         Employee[]     @relation("EmployeeManager")
+  status                EmployeeStatus @default(ACTIVE)
+  createdAt             DateTime       @default(now()) @map("created_at")
+  refreshTokens         RefreshToken[]
+  leaveRequests         LeaveRequest[] @relation("EmployeeLeaveRequests")
+  managerApprovedLeaves LeaveRequest[] @relation("ManagerApprovedLeaves")
+  hrApprovedLeaves      LeaveRequest[] @relation("HrApprovedLeaves")
+  payrolls              Payroll[]
 
   @@index([departmentId])
   @@index([jobTitleId])
@@ -77,4 +99,44 @@ model RefreshToken {
   @@index([employeeId])
   @@index([tokenHash])
   @@map("refresh_tokens")
+}
+
+model LeaveRequest {
+  id                  Int         @id @default(autoincrement())
+  employeeId          Int         @map("employee_id")
+  startDate           DateTime    @map("start_date") @db.Date
+  endDate             DateTime    @map("end_date") @db.Date
+  type                LeaveType
+  status              LeaveStatus @default(PENDING)
+  reason              String?     @db.Text
+  approvedByManagerId Int?        @map("approved_by_manager_id")
+  approvedByHrId      Int?        @map("approved_by_hr_id")
+  createdAt           DateTime    @default(now()) @map("created_at")
+
+  employee          Employee  @relation("EmployeeLeaveRequests", fields: [employeeId], references: [id], onDelete: Cascade)
+  approvedByManager Employee? @relation("ManagerApprovedLeaves", fields: [approvedByManagerId], references: [id], onDelete: SetNull)
+  approvedByHr      Employee? @relation("HrApprovedLeaves", fields: [approvedByHrId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+model Payroll {
+  id             Int           @id @default(autoincrement())
+  employeeId     Int           @map("employee_id")
+  baseSalary     Decimal       @map("base_salary") @db.Decimal(10, 2)
+  bonuses        Decimal       @default(0) @db.Decimal(10, 2)
+  deductions     Decimal       @default(0) @db.Decimal(10, 2)
+  totalSalary    Decimal?      @map("total_salary") @db.Decimal(10, 2)
+  payPeriodStart DateTime      @map("pay_period_start") @db.Date
+  payPeriodEnd   DateTime      @map("pay_period_end") @db.Date
+  status         PayrollStatus @default(PENDING)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([payPeriodStart, payPeriodEnd])
+  @@map("payrolls")
 }

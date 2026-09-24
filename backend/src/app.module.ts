@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmployeesModule } from './modules/employees/employees.module';
+import { LeaveRequestModule } from './modules/leave-request/leave-request.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { EmployeesModule } from './modules/employees/employees.module';
     PrismaModule,
     AuthModule,
     EmployeesModule,
+    LeaveRequestModule,
   ],
 })
 export class AppModule {}
