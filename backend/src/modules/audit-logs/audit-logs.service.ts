@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { PrismaService } from '../../database/prisma.service';
-import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+import { PrismaService } from '../../database/prisma.service.js';
+import { AuditLogQueryDto } from './dto/audit-log-query.dto.js';
 
 @Injectable()
 export class AuditLogsService {

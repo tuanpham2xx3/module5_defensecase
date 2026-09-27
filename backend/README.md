@@ -1,6 +1,6 @@
 # HRM Backend — SRS 4.1 và 4.2
 
-Backend NestJS cho Authentication/API Security và Employee/Profile Management.
+Backend NestJS/TypeScript chạy native ES Module (`NodeNext`) cho Authentication/API Security và Employee/Profile Management.
 Persistence dùng Prisma với PostgreSQL cài trực tiếp trên máy local; không dùng Docker.
 
 ## Chạy local

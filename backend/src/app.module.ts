@@ -1,16 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { PrismaModule } from './database/prisma.module';
-import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { EmployeesModule } from './modules/employees/employees.module';
-import { LeaveRequestModule } from './modules/leave-request/leave-request.module';
-import { PayrollsModule } from './modules/payrolls/payrolls.module';
+import { CoreModule } from './common/core.module.js';
+import { validateEnvironment } from './config/environment.validation.js';
+import { PrismaModule } from './database/prisma.module.js';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { EmployeesModule } from './modules/employees/employees.module.js';
+import { LeaveRequestModule } from './modules/leave-request/leave-request.module.js';
+import { PayrollsModule } from './modules/payrolls/payrolls.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
+    CoreModule,
     PrismaModule,
     AuthModule,
     EmployeesModule,

@@ -1,7 +1,8 @@
 import { EmployeeStatus } from '@prisma/client';
+import { jest } from '@jest/globals';
 
-import { Role } from '../../common/constants/role.enum';
-import { EmployeesService } from './employees.service';
+import { Role } from '../../common/constants/role.enum.js';
+import { EmployeesService } from './employees.service.js';
 
 describe('EmployeesService with Prisma', () => {
   const employee = {

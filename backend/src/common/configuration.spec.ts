@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsInt } from 'class-validator';
 
-import { createGlobalValidationPipe } from '../main';
+import { createGlobalValidationPipe } from '../main.js';
 
 class QueryDto {
   @Type(() => Number)

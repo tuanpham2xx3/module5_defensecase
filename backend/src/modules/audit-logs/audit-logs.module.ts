@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { AuditLogsController } from './audit-logs.controller';
-import { AuditLogsService } from './audit-logs.service';
+import { AuditLogsController } from './audit-logs.controller.js';
+import { AuditLogsService } from './audit-logs.service.js';
 
 @Module({
   controllers: [AuditLogsController],

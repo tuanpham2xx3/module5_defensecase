@@ -1,6 +1,7 @@
-import { EmployeeRecord } from '../../database/types';
+import type { EmployeeRecord } from '../../../database/types.js';
+import type { EmployeeResponse } from '../interfaces/employee-response.interface.js';
 
-export function toPublicEmployee(employee: EmployeeRecord): Record<string, unknown> {
+export function toPublicEmployee(employee: EmployeeRecord): EmployeeResponse {
   return {
     id: employee.id,
     firstName: employee.firstName,

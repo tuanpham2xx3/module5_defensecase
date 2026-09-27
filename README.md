@@ -11,7 +11,7 @@ Project dùng NestJS, Prisma và PostgreSQL chạy trực tiếp trên máy loca
 
 | Thành phần | Công nghệ |
 |---|---|
-| Runtime | Node.js 22+, npm |
+| Runtime | Node.js 22+, npm, native ESM (`NodeNext`) |
 | Backend | NestJS 11, TypeScript |
 | Database | PostgreSQL 15+; đã kiểm tra với PostgreSQL 17 |
 | ORM | Prisma 6.19.3 |

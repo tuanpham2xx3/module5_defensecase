@@ -1,7 +1,8 @@
 import * as bcrypt from 'bcrypt';
+import { jest } from '@jest/globals';
 
-import { Role } from '../../common/constants/role.enum';
-import { AuthService } from './auth.service';
+import { Role } from '../../common/constants/role.enum.js';
+import { AuthService } from './auth.service.js';
 
 describe('AuthService with Prisma', () => {
   const prisma = {

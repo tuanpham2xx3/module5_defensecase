@@ -3,18 +3,20 @@ import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import { jest } from '@jest/globals';
 import request from 'supertest';
 
-import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
-import { RolesGuard } from '../src/common/guards/roles.guard';
-import { configureApp } from '../src/main';
-import { AuthController } from '../src/modules/auth/auth.controller';
-import { AuthService } from '../src/modules/auth/auth.service';
-import { JwtStrategy } from '../src/modules/auth/strategies/jwt.strategy';
-import { LocalStrategy } from '../src/modules/auth/strategies/local.strategy';
-import { EmployeesController } from '../src/modules/employees/employees.controller';
-import { EmployeesService } from '../src/modules/employees/employees.service';
-import { ProfileController } from '../src/modules/employees/profile.controller';
+import { CoreModule } from '../src/common/core.module.js';
+import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../src/common/guards/roles.guard.js';
+import { configureApp } from '../src/main.js';
+import { AuthController } from '../src/modules/auth/auth.controller.js';
+import { AuthService } from '../src/modules/auth/auth.service.js';
+import { JwtStrategy } from '../src/modules/auth/strategies/jwt.strategy.js';
+import { LocalStrategy } from '../src/modules/auth/strategies/local.strategy.js';
+import { EmployeesController } from '../src/modules/employees/employees.controller.js';
+import { EmployeesService } from '../src/modules/employees/employees.service.js';
+import { ProfileController } from '../src/modules/employees/profile.controller.js';
 
 describe('Authentication and employee API (e2e)', () => {
   let app: INestApplication;
@@ -43,12 +45,18 @@ describe('Authentication and employee API (e2e)', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [JwtModule.register({ secret: 'test-secret' })],
+      imports: [CoreModule, JwtModule.register({ secret: 'test-secret' })],
       controllers: [AuthController, EmployeesController, ProfileController],
       providers: [
         { provide: AuthService, useValue: authService },
         { provide: EmployeesService, useValue: employeesService },
-        { provide: ConfigService, useValue: { get: (_key: string, fallback: string) => fallback === 'development-only-change-me' ? 'test-secret' : fallback } },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (_key: string, fallback: string) => fallback,
+            getOrThrow: (key: string) => key === 'JWT_ACCESS_SECRET' ? 'test-secret' : undefined,
+          },
+        },
         LocalStrategy,
         JwtStrategy,
         { provide: APP_GUARD, useClass: JwtAuthGuard },

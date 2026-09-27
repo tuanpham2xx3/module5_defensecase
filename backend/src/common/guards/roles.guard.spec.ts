@@ -1,8 +1,9 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { jest } from '@jest/globals';
 
-import { Role } from '../constants/role.enum';
-import { RolesGuard } from './roles.guard';
+import { Role } from '../constants/role.enum.js';
+import { RolesGuard } from './roles.guard.js';
 
 describe('RolesGuard', () => {
   it('rejects an authenticated user whose role is not declared by the route', () => {

@@ -2,24 +2,26 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { EmployeeStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
-import { Role } from '../../common/constants/role.enum';
-import { toPublicEmployee } from '../../common/utils/employee-presenter';
-import { PrismaService } from '../../database/prisma.service';
-import { employeeInclude } from '../../database/types';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { EmployeeQueryDto } from './dto/employee-query.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { Role } from '../../common/constants/role.enum.js';
+import type { PaginatedResult } from '../../common/types/paginated-result.interface.js';
+import { PrismaService } from '../../database/prisma.service.js';
+import { employeeInclude } from '../../database/types.js';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface.js';
+import { CreateEmployeeDto } from './dto/create-employee.dto.js';
+import { EmployeeQueryDto } from './dto/employee-query.dto.js';
+import { UpdateEmployeeDto } from './dto/update-employee.dto.js';
+import type { EmployeeResponse } from './interfaces/employee-response.interface.js';
+import { toPublicEmployee } from './presenters/employee.presenter.js';
 
 @Injectable()
 export class EmployeesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getProfile(employeeId: number): Promise<Record<string, unknown>> {
+  async getProfile(employeeId: number): Promise<EmployeeResponse> {
     return toPublicEmployee(await this.findEntity(employeeId));
   }
 
-  async findAll(query: EmployeeQueryDto) {
+  async findAll(query: EmployeeQueryDto): Promise<PaginatedResult<EmployeeResponse>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const search = query.search?.trim();
@@ -55,11 +57,11 @@ export class EmployeesService {
     };
   }
 
-  async findOne(id: number): Promise<Record<string, unknown>> {
+  async findOne(id: number): Promise<EmployeeResponse> {
     return toPublicEmployee(await this.findEntity(id));
   }
 
-  async create(dto: CreateEmployeeDto, actor: JwtPayload): Promise<Record<string, unknown>> {
+  async create(dto: CreateEmployeeDto, actor: JwtPayload): Promise<EmployeeResponse> {
     this.assertCanManage(actor);
     this.assertRoleAssignment(actor, dto.role);
     const email = dto.email.trim().toLowerCase();
@@ -88,7 +90,7 @@ export class EmployeesService {
     );
   }
 
-  async update(id: number, dto: UpdateEmployeeDto, actor: JwtPayload): Promise<Record<string, unknown>> {
+  async update(id: number, dto: UpdateEmployeeDto, actor: JwtPayload): Promise<EmployeeResponse> {
     this.assertCanManage(actor);
     this.assertRoleAssignment(actor, dto.role);
     const employee = await this.findEntity(id);
@@ -119,7 +121,7 @@ export class EmployeesService {
     );
   }
 
-  async remove(id: number, actor: JwtPayload): Promise<Record<string, unknown>> {
+  async remove(id: number, actor: JwtPayload): Promise<EmployeeResponse> {
     this.assertCanManage(actor);
     await this.findEntity(id);
     return toPublicEmployee(
