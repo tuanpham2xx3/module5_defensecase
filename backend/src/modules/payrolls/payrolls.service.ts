@@ -1,7 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "../../database/prisma.service";
 import { PayrollProcessDto } from "./dto/payroll-process.dto";
-import { EmployeeStatus, LeaveStatus } from "@prisma/client";
+import { EmployeeStatus, LeaveStatus, Prisma } from "@prisma/client";
+import { AdminPayrollQuery, PayrollQuery } from "./dto/payroll-filter.query";
 
 @Injectable()
 export class PayrollsService {
@@ -29,6 +34,12 @@ export class PayrollsService {
   }
 
   async createPayroll(dto: PayrollProcessDto) {
+    if (new Date(dto.pay_period_start) > new Date(dto.pay_period_end)) {
+      throw new BadRequestException(
+        "Ngày bắt đầu kỳ lương không được lớn hơn ngày kết thúc!",
+      );
+    }
+
     /**
      * 1. Lấy toàn bộ nhân viên đang hoạt động
      * 2. Tự động tính toán số ngày nghỉ phép KHÔNG HỢP LỆ:
@@ -53,57 +64,184 @@ export class PayrollsService {
       },
     });
 
-    for (const employee of activeEmployeeList) {
-      let unapprovedDays = 0;
-      let totalLeavesDays = 0;
+    return this.prisma.$transaction(async (tx) => {
+      for (const employee of activeEmployeeList) {
+        let unapprovedDays = 0;
+        let totalLeavesDays = 0;
 
-      employee.leaveRequests.forEach((request) => {
-        const days = this.calculateLeaveDays(
-          request.startDate,
-          dto.pay_period_start,
-          request.endDate,
-          dto.pay_period_end,
+        employee.leaveRequests.forEach((request) => {
+          const days = this.calculateLeaveDays(
+            request.startDate,
+            dto.pay_period_start,
+            request.endDate,
+            dto.pay_period_end,
+          );
+
+          if (request.status === LeaveStatus.APPROVED_BY_HR) {
+            totalLeavesDays += days;
+          } else {
+            unapprovedDays += days;
+          }
+        });
+
+        const maxLeaveDays = Number(process.env.MAXIMUM_LEAVE_DAYS || 2);
+        const excessDays = Math.max(0, totalLeavesDays - maxLeaveDays);
+        unapprovedDays += excessDays;
+
+        const standardWorkingDays = Number(
+          process.env.STANDARD_WORKING_DAYS || 22,
         );
+        const baseSalary = Number(employee.jobTitle?.salaryRangeMin || 10000000);
+        const deductions = Math.max(
+          0,
+          (baseSalary / standardWorkingDays) * unapprovedDays,
+        );
+        const bonuses = 0;
+        const totalSalary = Math.max(0, baseSalary + bonuses - deductions);
 
-        if (request.status === LeaveStatus.APPROVED_BY_HR) {
-          totalLeavesDays += days;
+        const existingPayroll = await tx.payroll.findFirst({
+          where: {
+            employeeId: employee.id,
+            payPeriodStart: new Date(dto.pay_period_start),
+            payPeriodEnd: new Date(dto.pay_period_end),
+          },
+        });
+
+        if (existingPayroll) {
+          await tx.payroll.update({
+            where: { id: existingPayroll.id },
+            data: {
+              baseSalary,
+              bonuses,
+              deductions,
+              totalSalary,
+            },
+          });
         } else {
-          unapprovedDays += days;
+          await tx.payroll.create({
+            data: {
+              employeeId: employee.id,
+              baseSalary,
+              bonuses,
+              deductions,
+              totalSalary,
+              payPeriodStart: dto.pay_period_start,
+              payPeriodEnd: dto.pay_period_end,
+            },
+          });
         }
-      });
+      }
 
-      const maxLeaveDays = Number(process.env.MAXIMUM_LEAVE_DAYS || 2);
-      const excessDays = Math.max(0, totalLeavesDays - maxLeaveDays);
-      unapprovedDays += excessDays;
+      return {
+        message: "Xử lý bảng lương thành công",
+        processedEmployees: activeEmployeeList.length,
+      };
+    });
+  }
 
-      const standardWorkingDays = Number(
-        process.env.STANDARD_WORKING_DAYS || 22,
-      );
-      const baseSalary = Number(employee.jobTitle?.salaryRangeMin || 10000000);
-      const deductions = Math.max(
-        0,
-        (baseSalary / standardWorkingDays) * unapprovedDays,
-      );
+  async getPayroll(user: any, query: PayrollQuery) {
+    const employeeId = user.sub ?? user.id;
+    const employee = await this.prisma.employee.findUnique({
+      where: {
+        id: employeeId,
+      },
+    });
 
-      await this.prisma.payroll.create({
-        data: {
-          employeeId: employee.id,
-          baseSalary,
-          bonuses: 0,
-          deductions,
-          payPeriodStart: dto.pay_period_start,
-          payPeriodEnd: dto.pay_period_end,
-        },
-      });
+    if (!employee) {
+      throw new NotFoundException("Không tìm thấy thông tin nhân viên!");
     }
 
+    const where: Prisma.PayrollWhereInput = {
+      employeeId: employee.id,
+    };
+
+    if (query.pay_period_start || query.pay_period_end) {
+      where.payPeriodStart = {
+        ...(query.pay_period_start
+          ? { gte: new Date(query.pay_period_start) }
+          : {}),
+        ...(query.pay_period_end
+          ? { lte: new Date(query.pay_period_end) }
+          : {}),
+      };
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.payroll.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { payPeriodStart: "desc" },
+      }),
+      this.prisma.payroll.count({ where }),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
     return {
-      message: "Xử lý bảng lương thành công",
-      processedEmployees: activeEmployeeList.length,
+      items,
+      meta: { page, limit, total, totalPages },
     };
   }
 
-  async getPayroll(user: any, dto: PayrollProcessDto) {
-    const payroll = await this.prisma.payroll.findMany();
+  async getAllPayrolls(query: AdminPayrollQuery) {
+    const where: Prisma.PayrollWhereInput = {};
+
+    if (query.employeeName) {
+      const search = query.employeeName.trim();
+
+      where.employee = {
+        OR: [
+          { firstName: { contains: search, mode: "insensitive" } },
+          { lastName: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
+      };
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.pay_period_start || query.pay_period_end) {
+      where.payPeriodStart = {
+        ...(query.pay_period_start
+          ? { gte: new Date(query.pay_period_start) }
+          : {}),
+        ...(query.pay_period_end
+          ? { lte: new Date(query.pay_period_end) }
+          : {}),
+      };
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.payroll.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          employee: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
+        },
+      }),
+      this.prisma.payroll.count({ where }),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+    return {
+      items,
+      meta: { page, limit, total, totalPages },
+    };
   }
 }
