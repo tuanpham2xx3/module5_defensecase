@@ -3,10 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { PrismaService } from "../../database/prisma.service";
-import { PayrollProcessDto } from "./dto/payroll-process.dto";
+import { PrismaService } from "../../database/prisma.service.js";
+import { PayrollProcessDto } from "./dto/payroll-process.dto.js";
 import { EmployeeStatus, LeaveStatus, Prisma } from "@prisma/client";
-import { AdminPayrollQuery, PayrollQuery } from "./dto/payroll-filter.query";
+import { AdminPayrollQuery, PayrollQuery } from "./dto/payroll-filter.query.js";
 
 @Injectable()
 export class PayrollsService {

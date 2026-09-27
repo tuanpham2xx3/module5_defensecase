@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { AuditLogsController } from './audit-logs.controller.js';

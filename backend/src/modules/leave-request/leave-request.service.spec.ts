@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { LeaveStatus, LeaveType, Role } from '@prisma/client';
 
-import { LeaveRequestService } from './leave-request.service';
+import { LeaveRequestService } from './leave-request.service.js';
 
 describe('LeaveRequestService', () => {
   let service: LeaveRequestService;

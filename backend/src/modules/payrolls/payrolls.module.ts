@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { PayrollsService } from './payrolls.service';
-import { PayrollsController } from './payrolls.controller';
+import { PayrollsService } from './payrolls.service.js';
+import { PayrollsController } from './payrolls.controller.js';
 
 @Module({
   controllers: [PayrollsController],

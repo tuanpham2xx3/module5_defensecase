@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PayrollStatus } from '@prisma/client';
-import { PayrollsController } from './payrolls.controller';
-import { PayrollsService } from './payrolls.service';
+import { PayrollsController } from './payrolls.controller.js';
+import { PayrollsService } from './payrolls.service.js';
 
 describe('PayrollsController', () => {
   let controller: PayrollsController;

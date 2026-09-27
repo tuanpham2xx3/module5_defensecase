@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 import { LeaveStatus, Prisma, Role } from '@prisma/client';
 
-import { PrismaService } from '../../database/prisma.service';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { LeaveQueryDto } from './dto/leave-query.dto';
-import { LeaveRequestDto } from './dto/leave-request.dto';
+import { PrismaService } from '../../database/prisma.service.js';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface.js';
+import { LeaveQueryDto } from './dto/leave-query.dto.js';
+import { LeaveRequestDto } from './dto/leave-request.dto.js';
 
 @Injectable()
 export class LeaveRequestService {

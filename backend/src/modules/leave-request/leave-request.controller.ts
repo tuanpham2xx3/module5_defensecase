@@ -10,12 +10,12 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { LeaveQueryDto } from './dto/leave-query.dto';
-import { LeaveRequestDto } from './dto/leave-request.dto';
-import { LeaveRequestService } from './leave-request.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface.js';
+import { LeaveQueryDto } from './dto/leave-query.dto.js';
+import { LeaveRequestDto } from './dto/leave-request.dto.js';
+import { LeaveRequestService } from './leave-request.service.js';
 
 @Controller('leave-requests')
 export class LeaveRequestController {

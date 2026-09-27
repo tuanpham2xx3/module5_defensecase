@@ -1,8 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmployeeStatus, LeaveStatus, PayrollStatus } from '@prisma/client';
-import { PrismaService } from '../../database/prisma.service';
-import { PayrollsService } from './payrolls.service';
+import { PrismaService } from '../../database/prisma.service.js';
+import { PayrollsService } from './payrolls.service.js';
 
 describe('PayrollsService', () => {
   let service: PayrollsService;

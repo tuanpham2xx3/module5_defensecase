@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { LeaveRequestController } from './leave-request.controller';
-import { LeaveRequestService } from './leave-request.service';
+import { LeaveRequestController } from './leave-request.controller.js';
+import { LeaveRequestService } from './leave-request.service.js';
 
 @Module({
   controllers: [LeaveRequestController],

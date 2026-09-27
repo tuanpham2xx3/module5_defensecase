@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Role } from '../../common/constants/role.enum';
-import { LeaveRequestController } from './leave-request.controller';
-import { LeaveRequestService } from './leave-request.service';
+import { Role } from '../../common/constants/role.enum.js';
+import { LeaveRequestController } from './leave-request.controller.js';
+import { LeaveRequestService } from './leave-request.service.js';
 
 describe('LeaveRequestController', () => {
   let controller: LeaveRequestController;
