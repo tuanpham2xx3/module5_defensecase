@@ -4,9 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeaveStatus } from '@prisma/client';
+import { LeaveStatus, Prisma, Role } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { LeaveQueryDto } from './dto/leave-query.dto';
 import { LeaveRequestDto } from './dto/leave-request.dto';
 
 @Injectable()
@@ -76,6 +78,43 @@ export class LeaveRequestService {
     });
   }
 
+  async rejectLeaveRequestManager(userId: number, id: number) {
+    const leaveRequest = await this.prisma.leaveRequest.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        employee: {
+          select: {
+            managerId: true,
+          },
+        },
+      },
+    });
+
+    if (!leaveRequest) {
+      throw new NotFoundException('Không tìm thấy đơn nghỉ phép');
+    }
+
+    if (leaveRequest.status !== LeaveStatus.PENDING) {
+      throw new BadRequestException('Đơn nghỉ phép này đã được xử lý trước đó');
+    }
+
+    if (userId !== leaveRequest.employee.managerId) {
+      throw new ForbiddenException('Bạn không phải là quản lý trực tiếp của nhân viên này');
+    }
+
+    return this.prisma.leaveRequest.update({
+      where: {
+        id,
+      },
+      data: {
+        status: LeaveStatus.REJECTED,
+        approvedByManagerId: userId,
+      },
+    });
+  }
+
   async approveLeaveRequestHRManager(userId: number, id: number) {
     const leaveRequest = await this.prisma.leaveRequest.findUnique({
       where: {
@@ -100,5 +139,133 @@ export class LeaveRequestService {
         approvedByHrId: userId,
       },
     });
+  }
+
+  async rejectLeaveRequestHRManager(userId: number, id: number) {
+    const leaveRequest = await this.prisma.leaveRequest.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!leaveRequest) {
+      throw new NotFoundException('Không tìm thấy đơn nghỉ phép');
+    }
+
+    if (
+      leaveRequest.status !== LeaveStatus.PENDING &&
+      leaveRequest.status !== LeaveStatus.APPROVED_BY_MANAGER
+    ) {
+      throw new BadRequestException('Đơn nghỉ phép này đã được xử lý trước đó');
+    }
+
+    return this.prisma.leaveRequest.update({
+      where: {
+        id,
+      },
+      data: {
+        status: LeaveStatus.REJECTED,
+        approvedByHrId: userId,
+      },
+    });
+  }
+
+  async getMyLeaveRequests(userId: number, query: LeaveQueryDto) {
+    const where: Prisma.LeaveRequestWhereInput = {
+      employeeId: userId,
+    };
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    if (query.startDate || query.endDate) {
+      where.startDate = {
+        ...(query.startDate ? { gte: new Date(query.startDate) } : {}),
+        ...(query.endDate ? { lte: new Date(query.endDate) } : {}),
+      };
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.leaveRequest.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.leaveRequest.count({ where }),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+    return {
+      items,
+      meta: { page, limit, total, totalPages },
+    };
+  }
+
+  async getLeaveRequests(user: JwtPayload, query: LeaveQueryDto) {
+    const where: Prisma.LeaveRequestWhereInput = {};
+
+    // Phân quyền theo vai trò: MANAGER chỉ xem cấp dưới, HR/ADMIN xem toàn công ty
+    if (user.role === Role.MANAGER) {
+      where.employee = {
+        managerId: user.sub,
+      };
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    if (query.startDate || query.endDate) {
+      where.startDate = {
+        ...(query.startDate ? { gte: new Date(query.startDate) } : {}),
+        ...(query.endDate ? { lte: new Date(query.endDate) } : {}),
+      };
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.leaveRequest.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      }),
+      this.prisma.leaveRequest.count({ where }),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+    return {
+      items,
+      meta: { page, limit, total, totalPages },
+    };
   }
 }
