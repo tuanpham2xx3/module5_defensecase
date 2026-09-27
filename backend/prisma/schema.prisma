@@ -140,3 +140,19 @@ model Payroll {
   @@index([payPeriodStart, payPeriodEnd])
   @@map("payrolls")
 }
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  tableName String   @map("table_name") @db.VarChar(50)
+  action    String   @db.VarChar(10)
+  oldData   Json?    @map("old_data")
+  newData   Json?    @map("new_data")
+  actorId   Int?     @map("actor_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tableName])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+

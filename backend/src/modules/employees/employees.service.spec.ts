@@ -11,19 +11,21 @@ describe('EmployeesService with Prisma', () => {
     jobTitle: { id: 2, title: 'Developer' }, manager: null,
     createdAt: new Date('2026-09-23T00:00:00.000Z'),
   };
-  const prisma = {
+  const prisma: any = {
     employee: {
       findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn(),
     },
     department: { findUnique: jest.fn() },
     jobTitle: { findUnique: jest.fn() },
+    $executeRaw: jest.fn(),
+    $transaction: jest.fn(async (cb: (tx: any) => Promise<any>) => cb(prisma)),
   };
   let service: EmployeesService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     service = new EmployeesService(prisma as never);
-    prisma.employee.create.mockImplementation(async ({ data }) => ({ ...employee, ...data }));
+    prisma.employee.create.mockImplementation(async ({ data }: any) => ({ ...employee, ...data }));
     prisma.employee.update.mockResolvedValue(employee);
     prisma.department.findUnique.mockResolvedValue({ id: 1 });
     prisma.jobTitle.findUnique.mockResolvedValue({ id: 2 });

@@ -67,20 +67,25 @@ export class EmployeesService {
     if (existing) throw new ConflictException('Email đã được sử dụng');
     await this.validateReferences(dto);
 
-    return toPublicEmployee(await this.prisma.employee.create({
-      data: {
-        firstName: dto.firstName.trim(),
-        lastName: dto.lastName.trim(),
-        email,
-        password: await bcrypt.hash(dto.password, 10),
-        role: dto.role ?? Role.USER,
-        status: EmployeeStatus.ACTIVE,
-        departmentId: dto.departmentId ?? null,
-        jobTitleId: dto.jobTitleId ?? null,
-        managerId: dto.managerId ?? null,
-      },
-      include: employeeInclude,
-    }));
+    return toPublicEmployee(
+      await this.prisma.$transaction(async (tx) => {
+        await this.setAuditActor(tx, actor);
+        return tx.employee.create({
+          data: {
+            firstName: dto.firstName.trim(),
+            lastName: dto.lastName.trim(),
+            email,
+            password: await bcrypt.hash(dto.password, 10),
+            role: dto.role ?? Role.USER,
+            status: EmployeeStatus.ACTIVE,
+            departmentId: dto.departmentId ?? null,
+            jobTitleId: dto.jobTitleId ?? null,
+            managerId: dto.managerId ?? null,
+          },
+          include: employeeInclude,
+        });
+      }),
+    );
   }
 
   async update(id: number, dto: UpdateEmployeeDto, actor: JwtPayload): Promise<Record<string, unknown>> {
@@ -93,30 +98,46 @@ export class EmployeesService {
     }
     await this.validateReferences(dto);
 
-    return toPublicEmployee(await this.prisma.employee.update({
-      where: { id },
-      data: {
-        ...(dto.firstName !== undefined ? { firstName: dto.firstName.trim() } : {}),
-        ...(dto.lastName !== undefined ? { lastName: dto.lastName.trim() } : {}),
-        ...(dto.email !== undefined ? { email: dto.email.trim().toLowerCase() } : {}),
-        ...(dto.password !== undefined ? { password: await bcrypt.hash(dto.password, 10) } : {}),
-        ...(dto.role !== undefined ? { role: dto.role } : {}),
-        ...(dto.departmentId !== undefined ? { departmentId: dto.departmentId } : {}),
-        ...(dto.jobTitleId !== undefined ? { jobTitleId: dto.jobTitleId } : {}),
-        ...(dto.managerId !== undefined ? { managerId: dto.managerId } : {}),
-      },
-      include: employeeInclude,
-    }));
+    return toPublicEmployee(
+      await this.prisma.$transaction(async (tx) => {
+        await this.setAuditActor(tx, actor);
+        return tx.employee.update({
+          where: { id },
+          data: {
+            ...(dto.firstName !== undefined ? { firstName: dto.firstName.trim() } : {}),
+            ...(dto.lastName !== undefined ? { lastName: dto.lastName.trim() } : {}),
+            ...(dto.email !== undefined ? { email: dto.email.trim().toLowerCase() } : {}),
+            ...(dto.password !== undefined ? { password: await bcrypt.hash(dto.password, 10) } : {}),
+            ...(dto.role !== undefined ? { role: dto.role } : {}),
+            ...(dto.departmentId !== undefined ? { departmentId: dto.departmentId } : {}),
+            ...(dto.jobTitleId !== undefined ? { jobTitleId: dto.jobTitleId } : {}),
+            ...(dto.managerId !== undefined ? { managerId: dto.managerId } : {}),
+          },
+          include: employeeInclude,
+        });
+      }),
+    );
   }
 
   async remove(id: number, actor: JwtPayload): Promise<Record<string, unknown>> {
     this.assertCanManage(actor);
     await this.findEntity(id);
-    return toPublicEmployee(await this.prisma.employee.update({
-      where: { id },
-      data: { status: EmployeeStatus.TERMINATED },
-      include: employeeInclude,
-    }));
+    return toPublicEmployee(
+      await this.prisma.$transaction(async (tx) => {
+        await this.setAuditActor(tx, actor);
+        return tx.employee.update({
+          where: { id },
+          data: { status: EmployeeStatus.TERMINATED },
+          include: employeeInclude,
+        });
+      }),
+    );
+  }
+
+  private async setAuditActor(tx: any, actor?: JwtPayload): Promise<void> {
+    if (actor?.sub) {
+      await tx.$executeRaw`SELECT set_config('app.current_user_id', ${actor.sub.toString()}, true);`;
+    }
   }
 
   private async findEntity(id: number) {
