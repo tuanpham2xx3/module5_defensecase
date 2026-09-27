@@ -4,14 +4,15 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 
-import { Role } from '../../common/constants/role.enum';
-import { toPublicEmployee } from '../../common/utils/employee-presenter';
-import { PrismaService } from '../../database/prisma.service';
-import { employeeInclude, EmployeeForAuth } from '../../database/types';
-import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
-import { RegisterDto } from './dto/register.dto';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { Role } from '../../common/constants/role.enum.js';
+import { PrismaService } from '../../database/prisma.service.js';
+import { employeeInclude, EmployeeForAuth } from '../../database/types.js';
+import type { EmployeeResponse } from '../employees/interfaces/employee-response.interface.js';
+import { toPublicEmployee } from '../employees/presenters/employee.presenter.js';
+import { LoginDto } from './dto/login.dto.js';
+import { RefreshDto } from './dto/refresh.dto.js';
+import { RegisterDto } from './dto/register.dto.js';
+import { JwtPayload } from './interfaces/jwt-payload.interface.js';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
@@ -36,7 +37,7 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<Record<string, unknown>> {
+  async register(dto: RegisterDto): Promise<EmployeeResponse> {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.employee.findUnique({ where: { email } });
     if (existing) throw new ConflictException('Email đã được sử dụng');

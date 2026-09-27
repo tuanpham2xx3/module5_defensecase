@@ -5,10 +5,9 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { pathToFileURL } from 'node:url';
 
-import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { AppModule } from './app.module.js';
 
 export function createGlobalValidationPipe(): ValidationPipe {
   return new ValidationPipe({
@@ -27,8 +26,6 @@ export function configureApp(app: INestApplication): void {
     .filter(Boolean);
   app.enableCors({ origin: corsOrigins.length > 0 ? corsOrigins : false, credentials: true });
   app.useGlobalPipes(createGlobalValidationPipe());
-  app.useGlobalInterceptors(new ResponseInterceptor());
-  app.useGlobalFilters(new HttpExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('HRM API')
@@ -46,6 +43,6 @@ export async function bootstrap(): Promise<void> {
   await app.listen(configService.get<number>('PORT', 3000));
 }
 
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   void bootstrap();
 }

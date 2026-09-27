@@ -1,14 +1,14 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '../../common/constants/role.enum';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { CreateEmployeeDto } from './dto/create-employee.dto';
-import { EmployeeQueryDto } from './dto/employee-query.dto';
-import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import { EmployeesService } from './employees.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { Role } from '../../common/constants/role.enum.js';
+import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface.js';
+import { CreateEmployeeDto } from './dto/create-employee.dto.js';
+import { EmployeeQueryDto } from './dto/employee-query.dto.js';
+import { UpdateEmployeeDto } from './dto/update-employee.dto.js';
+import { EmployeesService } from './employees.service.js';
 
 @ApiTags('Employees')
 @ApiBearerAuth()

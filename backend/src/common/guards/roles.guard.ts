@@ -1,8 +1,13 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 
-import { Role } from '../constants/role.enum';
-import { ROLES_KEY } from '../decorators/roles.decorator';
+import { Role } from "../constants/role.enum.js";
+import { ROLES_KEY } from "../decorators/roles.decorator.js";
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -15,9 +20,11 @@ export class RolesGuard implements CanActivate {
     ]);
     if (!roles?.length) return true;
 
-    const user = context.switchToHttp().getRequest<{ user?: { role?: Role } }>().user;
+    const user = context
+      .switchToHttp()
+      .getRequest<{ user?: { role?: Role } }>().user;
     if (!user || !roles.includes(user.role as Role)) {
-      throw new ForbiddenException('Bạn không có quyền thực hiện thao tác này');
+      throw new ForbiddenException("Bạn không có quyền thực hiện thao tác này");
     }
     return true;
   }

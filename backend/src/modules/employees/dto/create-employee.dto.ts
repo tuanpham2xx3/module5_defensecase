@@ -1,6 +1,6 @@
 import { IsEmail, IsEnum, IsInt, IsOptional, IsString, Length, Matches } from 'class-validator';
 
-import { Role } from '../../../common/constants/role.enum';
+import { Role } from '../../../common/constants/role.enum.js';
 
 export class CreateEmployeeDto {
   @IsString()

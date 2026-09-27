@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import { PrismaClient, Role, EmployeeStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { pathToFileURL } from 'node:url';
 
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = 'Password@123';
@@ -56,7 +57,7 @@ async function upsertEmployee(
   });
 }
 
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   seed()
     .finally(() => prisma.$disconnect())
     .catch(() => process.exitCode = 1);

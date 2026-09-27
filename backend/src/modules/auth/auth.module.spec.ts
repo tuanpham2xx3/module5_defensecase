@@ -1,6 +1,6 @@
 import { APP_GUARD } from '@nestjs/core';
 
-import { AuthModule } from './auth.module';
+import { AuthModule } from './auth.module.js';
 
 describe('AuthModule', () => {
   it('registers authentication and role guards as global APP_GUARD providers', () => {

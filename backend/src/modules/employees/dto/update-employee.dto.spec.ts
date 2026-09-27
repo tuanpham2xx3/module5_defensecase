@@ -1,7 +1,7 @@
 import { getMetadataStorage } from 'class-validator';
 
-import { CreateEmployeeDto } from './create-employee.dto';
-import { UpdateEmployeeDto } from './update-employee.dto';
+import { CreateEmployeeDto } from './create-employee.dto.js';
+import { UpdateEmployeeDto } from './update-employee.dto.js';
 
 describe('UpdateEmployeeDto', () => {
   it('inherits CreateEmployeeDto through PartialType', () => {
