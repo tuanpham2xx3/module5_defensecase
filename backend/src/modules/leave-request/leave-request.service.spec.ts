@@ -1,4 +1,4 @@
-import { LeaveStatus, LeaveType } from '@prisma/client';
+import { LeaveStatus, LeaveType, Role } from '@prisma/client';
 
 import { LeaveRequestService } from './leave-request.service';
 
@@ -11,7 +11,9 @@ describe('LeaveRequestService', () => {
     leaveRequest: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -109,6 +111,24 @@ describe('LeaveRequestService', () => {
     });
   });
 
+  describe('rejectLeaveRequestManager', () => {
+    it('rejects leave request when user is direct manager', async () => {
+      prisma.leaveRequest.findUnique.mockResolvedValue({
+        id: 10,
+        status: LeaveStatus.PENDING,
+        employee: { managerId: 5 },
+      });
+      prisma.leaveRequest.update.mockResolvedValue({
+        id: 10,
+        status: LeaveStatus.REJECTED,
+        approvedByManagerId: 5,
+      });
+
+      const result = await service.rejectLeaveRequestManager(5, 10);
+      expect(result.status).toBe(LeaveStatus.REJECTED);
+    });
+  });
+
   describe('approveLeaveRequestHRManager', () => {
     it('approves leave request when status is APPROVED_BY_MANAGER', async () => {
       prisma.leaveRequest.findUnique.mockResolvedValue({
@@ -134,6 +154,53 @@ describe('LeaveRequestService', () => {
       await expect(service.approveLeaveRequestHRManager(2, 10)).rejects.toMatchObject({
         status: 400,
       });
+    });
+  });
+
+  describe('rejectLeaveRequestHRManager', () => {
+    it('rejects leave request when called by HR', async () => {
+      prisma.leaveRequest.findUnique.mockResolvedValue({
+        id: 10,
+        status: LeaveStatus.APPROVED_BY_MANAGER,
+      });
+      prisma.leaveRequest.update.mockResolvedValue({
+        id: 10,
+        status: LeaveStatus.REJECTED,
+        approvedByHrId: 2,
+      });
+
+      const result = await service.rejectLeaveRequestHRManager(2, 10);
+      expect(result.status).toBe(LeaveStatus.REJECTED);
+    });
+  });
+
+  describe('getMyLeaveRequests', () => {
+    it('returns paginated leave requests of current employee', async () => {
+      prisma.leaveRequest.findMany.mockResolvedValue([{ id: 10, employeeId: 1 }]);
+      prisma.leaveRequest.count.mockResolvedValue(1);
+
+      const result = await service.getMyLeaveRequests(1, { page: 1, limit: 10 });
+      expect(result.items).toHaveLength(1);
+      expect(result.meta.total).toBe(1);
+    });
+  });
+
+  describe('getLeaveRequests', () => {
+    it('filters for manager subordinates when user role is MANAGER', async () => {
+      prisma.leaveRequest.findMany.mockResolvedValue([{ id: 10, employeeId: 3 }]);
+      prisma.leaveRequest.count.mockResolvedValue(1);
+
+      const user = { sub: 5, email: 'mgr@hrm.local', role: Role.MANAGER };
+      const result = await service.getLeaveRequests(user, { page: 1, limit: 10 });
+
+      expect(prisma.leaveRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            employee: { managerId: 5 },
+          }),
+        }),
+      );
+      expect(result.items).toHaveLength(1);
     });
   });
 });
