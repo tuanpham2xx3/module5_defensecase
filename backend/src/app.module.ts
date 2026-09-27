@@ -5,6 +5,7 @@ import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 import { LeaveRequestModule } from './modules/leave-request/leave-request.module';
+import { PayrollsModule } from './modules/payrolls/payrolls.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { LeaveRequestModule } from './modules/leave-request/leave-request.module
     AuthModule,
     EmployeesModule,
     LeaveRequestModule,
+    PayrollsModule,
   ],
 })
 export class AppModule {}
