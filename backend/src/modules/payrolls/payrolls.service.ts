@@ -7,6 +7,7 @@ import { PrismaService } from "../../database/prisma.service.js";
 import { PayrollProcessDto } from "./dto/payroll-process.dto.js";
 import { EmployeeStatus, LeaveStatus, Prisma } from "@prisma/client";
 import { AdminPayrollQuery, PayrollQuery } from "./dto/payroll-filter.query.js";
+import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface.js';
 
 @Injectable()
 export class PayrollsService {
@@ -33,7 +34,7 @@ export class PayrollsService {
     return Math.floor((end - start) / ONE_DAY_MS) + 1;
   }
 
-  async createPayroll(dto: PayrollProcessDto) {
+  async createPayroll(dto: PayrollProcessDto, actor?: JwtPayload) {
     if (new Date(dto.pay_period_start) > new Date(dto.pay_period_end)) {
       throw new BadRequestException(
         "Ngày bắt đầu kỳ lương không được lớn hơn ngày kết thúc!",
@@ -65,6 +66,7 @@ export class PayrollsService {
     });
 
     return this.prisma.$transaction(async (tx) => {
+      if (actor?.sub) await tx.$executeRaw`SELECT set_config('app.current_user_id', ${actor.sub.toString()}, true);`;
       for (const employee of activeEmployeeList) {
         let unapprovedDays = 0;
         let totalLeavesDays = 0;

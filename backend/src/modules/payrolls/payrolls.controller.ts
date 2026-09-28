@@ -15,8 +15,8 @@ export class PayrollsController {
 
   @Roles(Role.HR_MANAGER)
   @Post("/process")
-  createPayroll(@Body() dto: PayrollProcessDto) {
-    return this.payrollsService.createPayroll(dto);
+  createPayroll(@CurrentUser() user: any, @Body() dto: PayrollProcessDto) {
+    return this.payrollsService.createPayroll(dto, user);
   }
 
   @Get("/me")

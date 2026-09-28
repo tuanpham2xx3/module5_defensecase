@@ -26,7 +26,7 @@ export class LeaveRequestController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: LeaveRequestDto,
   ) {
-    return this.leaveRequestService.createLeaveRequest(user.sub, dto);
+    return this.leaveRequestService.createLeaveRequest(user.sub, dto, user);
   }
 
   @Get('me')
@@ -52,7 +52,7 @@ export class LeaveRequestController {
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.leaveRequestService.approveLeaveRequestManager(user.sub, id);
+    return this.leaveRequestService.approveLeaveRequestManager(user.sub, id, user);
   }
 
   @Patch(':id/reject-manager')
@@ -61,7 +61,7 @@ export class LeaveRequestController {
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.leaveRequestService.rejectLeaveRequestManager(user.sub, id);
+    return this.leaveRequestService.rejectLeaveRequestManager(user.sub, id, user);
   }
 
   @Patch(':id/approve-hr')
@@ -70,7 +70,7 @@ export class LeaveRequestController {
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.leaveRequestService.approveLeaveRequestHRManager(user.sub, id);
+    return this.leaveRequestService.approveLeaveRequestHRManager(user.sub, id, user);
   }
 
   @Patch(':id/reject-hr')
@@ -79,6 +79,6 @@ export class LeaveRequestController {
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.leaveRequestService.rejectLeaveRequestHRManager(user.sub, id);
+    return this.leaveRequestService.rejectLeaveRequestHRManager(user.sub, id, user);
   }
 }

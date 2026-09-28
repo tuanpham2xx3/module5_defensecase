@@ -38,8 +38,9 @@ describe('PayrollsController', () => {
       pay_period_start: new Date('2026-09-01'),
       pay_period_end: new Date('2026-09-30'),
     };
-    const res = await controller.createPayroll(dto);
-    expect(service.createPayroll).toHaveBeenCalledWith(dto);
+    const user = { sub: 2, role: 'HR_MANAGER' };
+    const res = await controller.createPayroll(user, dto);
+    expect(service.createPayroll).toHaveBeenCalledWith(dto, user);
     expect(res).toEqual({ message: 'OK', processedEmployees: 1 });
   });
 

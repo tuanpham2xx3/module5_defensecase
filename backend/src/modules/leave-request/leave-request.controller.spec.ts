@@ -42,7 +42,7 @@ describe('LeaveRequestController', () => {
     const dto = { startDate: new Date('2026-10-01'), endDate: new Date('2026-10-02'), type: 'VACATION' as never };
 
     const result = await controller.createLeaveRequest(user, dto);
-    expect(mockService.createLeaveRequest).toHaveBeenCalledWith(10, dto);
+    expect(mockService.createLeaveRequest).toHaveBeenCalledWith(10, dto, user);
     expect(result).toEqual({ id: 1 });
   });
 
@@ -71,7 +71,7 @@ describe('LeaveRequestController', () => {
     const user = { sub: 5, email: 'mgr@hrm.local', role: Role.MANAGER };
 
     const result = await controller.approveLeaveRequestManager(user, 1);
-    expect(mockService.approveLeaveRequestManager).toHaveBeenCalledWith(5, 1);
+    expect(mockService.approveLeaveRequestManager).toHaveBeenCalledWith(5, 1, user);
     expect(result).toEqual({ id: 1 });
   });
 
@@ -80,7 +80,7 @@ describe('LeaveRequestController', () => {
     const user = { sub: 5, email: 'mgr@hrm.local', role: Role.MANAGER };
 
     const result = await controller.rejectLeaveRequestManager(user, 1);
-    expect(mockService.rejectLeaveRequestManager).toHaveBeenCalledWith(5, 1);
+    expect(mockService.rejectLeaveRequestManager).toHaveBeenCalledWith(5, 1, user);
     expect(result).toEqual({ id: 1 });
   });
 
@@ -89,7 +89,7 @@ describe('LeaveRequestController', () => {
     const user = { sub: 2, email: 'hr@hrm.local', role: Role.HR_MANAGER };
 
     const result = await controller.approveLeaveRequestHRManager(user, 1);
-    expect(mockService.approveLeaveRequestHRManager).toHaveBeenCalledWith(2, 1);
+    expect(mockService.approveLeaveRequestHRManager).toHaveBeenCalledWith(2, 1, user);
     expect(result).toEqual({ id: 1 });
   });
 
@@ -98,7 +98,7 @@ describe('LeaveRequestController', () => {
     const user = { sub: 2, email: 'hr@hrm.local', role: Role.HR_MANAGER };
 
     const result = await controller.rejectLeaveRequestHRManager(user, 1);
-    expect(mockService.rejectLeaveRequestHRManager).toHaveBeenCalledWith(2, 1);
+    expect(mockService.rejectLeaveRequestHRManager).toHaveBeenCalledWith(2, 1, user);
     expect(result).toEqual({ id: 1 });
   });
 });

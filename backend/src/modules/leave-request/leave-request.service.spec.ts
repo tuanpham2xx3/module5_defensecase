@@ -16,6 +16,7 @@ describe('LeaveRequestService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
+    $transaction: jest.fn(async (callback: (tx: any) => Promise<unknown>) => callback(prisma)),
   };
 
   beforeEach(() => {

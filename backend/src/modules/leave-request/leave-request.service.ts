@@ -15,7 +15,7 @@ import { LeaveRequestDto } from './dto/leave-request.dto.js';
 export class LeaveRequestService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createLeaveRequest(userId: number, dto: LeaveRequestDto) {
+  async createLeaveRequest(userId: number, dto: LeaveRequestDto, actor?: JwtPayload) {
     const employee = await this.prisma.employee.findUnique({
       where: {
         id: userId,
@@ -30,18 +30,19 @@ export class LeaveRequestService {
       throw new BadRequestException('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu');
     }
 
-    return this.prisma.leaveRequest.create({
-      data: {
+    return this.prisma.$transaction(async (tx) => {
+      await this.setAuditActor(tx, actor);
+      return tx.leaveRequest.create({ data: {
         employeeId: userId,
         startDate: dto.startDate,
         endDate: dto.endDate,
         type: dto.type,
         reason: dto.reason,
-      },
+      } });
     });
   }
 
-  async approveLeaveRequestManager(userId: number, id: number) {
+  async approveLeaveRequestManager(userId: number, id: number, actor?: JwtPayload) {
     const leaveRequest = await this.prisma.leaveRequest.findUnique({
       where: {
         id,
@@ -67,7 +68,7 @@ export class LeaveRequestService {
       throw new ForbiddenException('Bạn không phải là quản lý trực tiếp của nhân viên này');
     }
 
-    return this.prisma.leaveRequest.update({
+    return this.prisma.$transaction(async (tx) => { await this.setAuditActor(tx, actor); return tx.leaveRequest.update({
       where: {
         id,
       },
@@ -75,10 +76,10 @@ export class LeaveRequestService {
         status: LeaveStatus.APPROVED_BY_MANAGER,
         approvedByManagerId: userId,
       },
-    });
+    }); });
   }
 
-  async rejectLeaveRequestManager(userId: number, id: number) {
+  async rejectLeaveRequestManager(userId: number, id: number, actor?: JwtPayload) {
     const leaveRequest = await this.prisma.leaveRequest.findUnique({
       where: {
         id,
@@ -104,7 +105,7 @@ export class LeaveRequestService {
       throw new ForbiddenException('Bạn không phải là quản lý trực tiếp của nhân viên này');
     }
 
-    return this.prisma.leaveRequest.update({
+    return this.prisma.$transaction(async (tx) => { await this.setAuditActor(tx, actor); return tx.leaveRequest.update({
       where: {
         id,
       },
@@ -112,10 +113,10 @@ export class LeaveRequestService {
         status: LeaveStatus.REJECTED,
         approvedByManagerId: userId,
       },
-    });
+    }); });
   }
 
-  async approveLeaveRequestHRManager(userId: number, id: number) {
+  async approveLeaveRequestHRManager(userId: number, id: number, actor?: JwtPayload) {
     const leaveRequest = await this.prisma.leaveRequest.findUnique({
       where: {
         id,
@@ -130,7 +131,7 @@ export class LeaveRequestService {
       throw new BadRequestException('Đơn nghỉ phép cần được Quản lý trực tiếp phê duyệt trước');
     }
 
-    return this.prisma.leaveRequest.update({
+    return this.prisma.$transaction(async (tx) => { await this.setAuditActor(tx, actor); return tx.leaveRequest.update({
       where: {
         id,
       },
@@ -138,10 +139,10 @@ export class LeaveRequestService {
         status: LeaveStatus.APPROVED_BY_HR,
         approvedByHrId: userId,
       },
-    });
+    }); });
   }
 
-  async rejectLeaveRequestHRManager(userId: number, id: number) {
+  async rejectLeaveRequestHRManager(userId: number, id: number, actor?: JwtPayload) {
     const leaveRequest = await this.prisma.leaveRequest.findUnique({
       where: {
         id,
@@ -159,7 +160,7 @@ export class LeaveRequestService {
       throw new BadRequestException('Đơn nghỉ phép này đã được xử lý trước đó');
     }
 
-    return this.prisma.leaveRequest.update({
+    return this.prisma.$transaction(async (tx) => { await this.setAuditActor(tx, actor); return tx.leaveRequest.update({
       where: {
         id,
       },
@@ -167,7 +168,11 @@ export class LeaveRequestService {
         status: LeaveStatus.REJECTED,
         approvedByHrId: userId,
       },
-    });
+    }); });
+  }
+
+  private async setAuditActor(tx: any, actor?: JwtPayload): Promise<void> {
+    if (actor?.sub) await tx.$executeRaw`SELECT set_config('app.current_user_id', ${actor.sub.toString()}, true);`;
   }
 
   async getMyLeaveRequests(userId: number, query: LeaveQueryDto) {
